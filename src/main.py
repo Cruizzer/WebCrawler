@@ -128,6 +128,11 @@ def cmd_find(args: list[str], index: dict) -> None:
 
 def main() -> None:
     """Start the interactive CLI loop."""
+    print("\n" + "=" * 50)
+    print("    Welcome to Web Crawler Search Engine CLI")
+    print("=" * 50)
+    print("Type 'help' for a list of commands.\n")
+    
     index: dict = {}
 
     while True:
