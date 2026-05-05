@@ -6,7 +6,13 @@ Handles HTTP requests, pagination, politeness delay, and text extraction.
 
 from __future__ import annotations
 
+import time
+import logging
+from collections import deque
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
+
+import requests
+from bs4 import BeautifulSoup
 
 BASE_URL = "https://quotes.toscrape.com"
 POLITENESS_DELAY = 6
@@ -22,7 +28,6 @@ def _normalise_url(url: str) -> str:
 
 def _extract_same_domain_links(html: str, current_url: str, base_netloc: str) -> list[str]:
     """Extract unique same-domain links from a page, preserving document order."""
-    from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
     seen: set[str] = set()
     links: list[str] = []
@@ -40,7 +45,6 @@ def _extract_same_domain_links(html: str, current_url: str, base_netloc: str) ->
 
 def extract_text(html: str) -> str:
     """Extract visible text content from HTML string."""
-    from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style"]):
         tag.decompose()
@@ -62,11 +66,6 @@ def get_next_page(soup) -> str | None:
 
 def crawl_site(start_url: str = BASE_URL):
     """Crawl all pages from start_url yielding page data with URL, text, and links."""
-    import time
-    import logging
-    from collections import deque
-    import requests
-
     logger = logging.getLogger(__name__)
     session = requests.Session()
     session.headers.update({"User-Agent": "SearchEngineCoursework/1.0"})
@@ -108,6 +107,4 @@ def crawl_site(start_url: str = BASE_URL):
             if link not in visited and link not in queued:
                 to_visit.append(link)
                 queued.add(link)
-        page_number += 1
-
         page_number += 1
