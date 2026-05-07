@@ -10,6 +10,9 @@ from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 
 BASE_URL = "https://quotes.toscrape.com"
 POLITENESS_DELAY = 6
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1  # seconds
+RETRY_BACKOFF_FACTOR = 2  # exponential backoff multiplier
 
 
 def _normalise_url(url: str) -> str:
@@ -92,12 +95,26 @@ def crawl_site(start_url: str = BASE_URL):
         visited.add(current_url)
         logger.info("Crawling page %d: %s", page_number, current_url)
 
-        try:
-            response = session.get(current_url, timeout=15)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            logger.error("Request failed for %s: %s", current_url, exc)
-            page_number += 1
+        response = None
+        retry_delay = INITIAL_RETRY_DELAY
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                response = session.get(current_url, timeout=15)
+                response.raise_for_status()
+                break  # Success
+            except requests.RequestException as exc:
+                if attempt == MAX_RETRIES:
+                    logger.error("Request failed for %s after %d retries: %s", current_url, MAX_RETRIES, exc)
+                    page_number += 1
+                    response = None
+                    break
+                else:
+                    logger.warning("Request failed for %s (attempt %d/%d), retrying in %.1f seconds: %s", 
+                                   current_url, attempt, MAX_RETRIES, retry_delay, exc)
+                    time.sleep(retry_delay)
+                    retry_delay *= RETRY_BACKOFF_FACTOR
+        
+        if response is None:
             continue
 
         text = extract_text(response.text)
@@ -108,6 +125,4 @@ def crawl_site(start_url: str = BASE_URL):
             if link not in visited and link not in queued:
                 to_visit.append(link)
                 queued.add(link)
-        page_number += 1
-
         page_number += 1
